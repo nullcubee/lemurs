@@ -18,6 +18,7 @@
       nixpkgs,
       rust-overlay,
       flake-parts,
+      self,
       ...
     }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
@@ -69,5 +70,14 @@
             ];
           };
         };
+
+      flake.nixosModules = rec {
+        default = lemurs;
+        lemurs.imports = [
+          { nixpkgs.overlays = [ self.overlays.default ]; }
+          ./extra/nixosModule.nix
+        ];
+      };
     };
+
 }
