@@ -49,6 +49,15 @@ in
     };
 
     settings = {
+      ttyLogin = mkOption {
+        type = types.bool;
+        default = (defaultConfig.environment_switcher.include_tty_shell);
+        description = ''
+          Show an option for the TTY shell when logging in as one of the environments.
+          NOTE: it is always shown when no viable options are found.
+        '';
+      };
+
       x11 = {
         xauth = mkOption {
           type = with types; nullOr package;
@@ -121,6 +130,7 @@ in
           # Also, in general, dirty hack
           tty = cfg.tty;
           system_shell = cfg.shell;
+          environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
           x11 =
             # Dont add x11 config if x11 isn't enabled
             if cfg.x11.enable then {
