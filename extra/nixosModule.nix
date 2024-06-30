@@ -5,62 +5,67 @@
   ...
 }:
 let
+  cfg = config.services.lemurs;
   sessionData = config.services.displayManager.sessionData.desktops.outPath;
+  inherit (lib)
+    mkDefault
+    mkEnableOption
+    mkOption
+    types
+    ;
 in
 {
   options.services.lemurs = rec {
-    enable = lib.mkEnableOption "Enable the Lemurs Display Manager";
+    enable = mkEnableOption "Enable the Lemurs Display Manager";
 
-    x11.enable = lib.mkEnableOption "Enable the X11 part of the Lemurs Display Manager";
-    wayland.enable = lib.mkEnableOption "Enable the Wayland part of the Lemurs Display Manager";
+    x11.enable = mkEnableOption "Enable the X11 part of the Lemurs Display Manager";
+    wayland.enable = mkEnableOption "Enable the Wayland part of the Lemurs Display Manager";
 
-    tty = lib.mkOption {
-      type = lib.types.str;
+    tty = mkOption {
+      type = types.str;
       default = "tty2";
     };
 
     settings = {
       x11 = {
-        xauth = lib.mkOption {
-          type = lib.types.nullOr lib.types.package;
+        xauth = mkOption {
+          type = types.nullOr types.package;
           default = if x11.enable then pkgs.xorg.xauth else null;
         };
 
-        xorgserver = lib.mkOption {
-          type = lib.types.nullOr lib.types.package;
+        xorgserver = mkOption {
+          type = types.nullOr types.package;
           default = if x11.enable then pkgs.xorg.xorgserver else null;
         };
 
-        xsessions = lib.mkOption {
-          type = lib.types.path;
+        xsessions = mkOption {
+          type = types.path;
           default = "${sessionData}/share/xsessions";
         };
       };
 
       wayland = {
-        wayland-sessions = lib.mkOption {
-          type = lib.types.path;
+        wayland-sessions = mkOption {
+          type = types.path;
           default = "${sessionData}/share/wayland-sessions";
         };
       };
     };
   };
 
-  config =
-    let
-      cfg = config.services.lemurs;
-    in
-    lib.mkIf cfg.enable {
-      security.pam.services.lemurs = {
-        allowNullPassword = true;
-        startSession = true;
-        setLoginUid = false;
-        enableGnomeKeyring = lib.mkDefault config.services.gnome.gnome-keyring.enable;
-      };
+  config = lib.mkIf cfg.enable {
+    security.pam.services.lemurs = {
+      allowNullPassword = true;
+      startSession = true;
+      setLoginUid = false;
+      enableGnomeKeyring = mkDefault config.services.gnome.gnome-keyring.enable;
+    };
 
-      systemd.services."autovt@${cfg.tty}".enable = false;
+    systemd.defaultUnit = "graphical.target";
+    systemd.services = {
+      "autovt@${cfg.tty}".enable = false;
 
-      systemd.services.lemurs = {
+      lemurs = {
         aliases = [ "display-manager.service" ];
 
         unitConfig = {
@@ -85,21 +90,16 @@ in
               --xsessions  ${cfg.settings.x11.xsessions} \
               --wlsessions ${cfg.settings.wayland.wayland-sessions}
           '';
-
           StandardInput = "tty";
           TTYPath = "/dev/${cfg.tty}";
           TTYReset = "yes";
           TTYVHangup = "yes";
-
           Type = "idle";
         };
-
         restartIfChanged = false;
-
         wantedBy = [ "graphical.target" ];
       };
-
-      systemd.defaultUnit = "graphical.target";
-
     };
+
+  };
 }
