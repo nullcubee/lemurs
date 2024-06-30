@@ -133,6 +133,23 @@ in
             if cfg.wayland.enable then {
               wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
             } else { };
+          # Hack
+          power_controls.base_entries = [
+            {
+              hint = "Shutdown";
+              hint_color = "dark gray";
+              hint_modifiers = "";
+              key = "F1";
+              cmd = "${pkgs.systemd}/bin/systemctl poweroff";
+            }
+            {
+              hint = "Reboot";
+              hint_color = "dark gray";
+              hint_modifiers = "";
+              key = "F2";
+              cmd = "${pkgs.systemd}/bin/systemctl reboot";
+            }
+          ];
         });
 
       tty = "tty${toString (cfg.tty)}";
