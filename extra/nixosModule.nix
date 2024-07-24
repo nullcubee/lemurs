@@ -40,18 +40,6 @@ in
       '';
     };
 
-    shell = mkOption {
-      type = types.str;
-      default = "${pkgs.bash}/bin/bash";
-      # I wanted to set this to the default shell system-wide
-      # but I wasn't sure of a great way to have that work properly
-      # default = config.users.defaultUserShell;
-      description = ''
-        Path to system shell that gets used to execute linux commands.
-        In almost all cases, this should refer to a bash shell.
-      '';
-    };
-
     settings = {
       ttyLogin = mkOption {
         type = types.bool;
@@ -133,7 +121,8 @@ in
           # Map module options to lemurs' config.toml format
           # Also, in general, dirty hack
           tty = cfg.tty;
-          system_shell = cfg.shell;
+          # Set correct shell (not an option)
+          system_shell = "${pkgs.bash}/bin/bash";
           environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
           x11 =
             # Dont add x11 config if x11 isn't enabled
