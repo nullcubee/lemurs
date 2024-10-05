@@ -3,22 +3,73 @@ let
   # Module options shortcut
   cfg = config.services.lemurs;
 
-  # .desktop files for window manaagers/compositors
-  sessionData = config.services.displayManager.sessionData;
-
-  # TOML format
-  settingsFormat = pkgs.formats.toml { };
-
-  # Import config.toml as defaultConfig
-  defaultConfig = lib.importTOML "${pkgs.lemurs.src}/extra/config.toml";
-
   # Inherit
   inherit (lib)
     mkDefault
     mkEnableOption
+    mkIf
     mkOption
     types
     ;
+
+  # .desktop files for window manaagers/compositors
+  sessionData = config.services.displayManager.sessionData;
+
+  # TOML format
+  tomlFmt = pkgs.formats.toml { };
+
+  # Import config.toml as defaultConfig
+  defaultConfig = lib.importTOML "${pkgs.lemurs.src}/extra/config.toml";
+
+  # TTY Option
+  tty = "tty${toString (cfg.tty)}";
+
+  # Merge defaultConfig with extraSettings and module options
+  # The priority for options goes
+  # 1. Module options
+  # 2. extraSettings
+  # 3. defaultConfig
+  # Lower numbers (i.e 1) will overwrite settings defined in higher numbers (i.e 3)
+  lemursConfig = lib.recursiveUpdate defaultConfig (lib.recursiveUpdate cfg.extraSettings {
+    # Map module options to lemurs' config.toml format
+    # Also, in general, dirty hack
+
+    inherit (cfg) tty;
+
+    # Set correct shell (not an option)
+    system_shell = lib.getExe pkgs.bash;
+    environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
+
+    # Dont add x11 config if x11 isn't enabled
+    x11 = lib.optionalAttrs cfg.x11.enable {
+      xauth_path = "${cfg.settings.x11.xauth}/bin/xauth";
+      xserver_path = "${cfg.settings.x11.xorgserver}/bin/X";
+      xsessions_path = cfg.settings.x11.xsessions;
+    };
+
+    # Dont add wayland config if wayland isn't enabled
+    wayland = lib.optionalAttrs cfg.wayland.enable {
+      wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
+    };
+
+    # Hack
+    power_controls.base_entries = [
+      {
+        hint = "Shutdown";
+        hint_color = "dark gray";
+        hint_modifiers = "";
+        key = "F1";
+        cmd = "${pkgs.systemd}/bin/systemctl poweroff";
+      }
+      {
+        hint = "Reboot";
+        hint_color = "dark gray";
+        hint_modifiers = "";
+        key = "F2";
+        cmd = "${pkgs.systemd}/bin/systemctl reboot";
+      }
+    ];
+  });
 in
 {
   options.services.lemurs = {
@@ -83,7 +134,7 @@ in
     };
 
     extraSettings = mkOption {
-      type = settingsFormat.type;
+      type = tomlFmt.type;
       example = lib.literalExpression /*nix*/ ''
         {
           do_log = true;
@@ -101,132 +152,74 @@ in
     };
   };
 
-  config =
-    let
-      # Merge defaultConfig with extraSettings and module options
-      # The priority for options goes
-      # 1. Module options
-      # 2. extraSettings
-      # 3. defaultConfig
-      # Lower numbers (i.e 1) will overwrite settings defined in higher numbers (i.e 3)
-      lemursConfig = lib.recursiveUpdate defaultConfig (lib.recursiveUpdate
-        # Nested recursiveUpdate
-        (cfg.extraSettings)
-        {
-          # Map module options to lemurs' config.toml format
-          # Also, in general, dirty hack
-          tty = cfg.tty;
-          # Set correct shell (not an option)
-          system_shell = "${pkgs.bash}/bin/bash";
-          environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
-          x11 =
-            # Dont add x11 config if x11 isn't enabled
-            if cfg.x11.enable then {
-              xauth_path = "${cfg.settings.x11.xauth}/bin/xauth";
-              xserver_path = "${cfg.settings.x11.xorgserver}/bin/X";
-              xsessions_path = cfg.settings.x11.xsessions;
-            } else { };
-          wayland =
-            # Dont add wayland config if wayland isn't enabled
-            if cfg.wayland.enable then {
-              wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
-            } else { };
-          # Hack
-          power_controls.base_entries = [
-            {
-              hint = "Shutdown";
-              hint_color = "dark gray";
-              hint_modifiers = "";
-              key = "F1";
-              cmd = "${pkgs.systemd}/bin/systemctl poweroff";
-            }
-            {
-              hint = "Reboot";
-              hint_color = "dark gray";
-              hint_modifiers = "";
-              key = "F2";
-              cmd = "${pkgs.systemd}/bin/systemctl reboot";
-            }
-          ];
-        });
+  config = mkIf cfg.enable {
+    services.displayManager.enable = mkDefault true;
 
-      tty = "tty${toString (cfg.tty)}";
-    in
-    lib.mkIf cfg.enable {
+    # PAM setup
+    security.pam.services = {
+      lemurs.text = ''
+        auth include login
+        account include login
+        session include login
+        password include login
+      '';
 
-      # PAM setup
-      security.pam.services = {
-        lemurs.text = ''
-          auth include login
-          account include login
-          session include login
-          password include login
-        '';
-
-        # See https://github.com/coastalwhite/lemurs/issues/166
-        login = {
-          setLoginUid = false;
-          enableGnomeKeyring = config.services.gnome.gnome-keyring.enable;
-        };
+      # See https://github.com/coastalwhite/lemurs/issues/166
+      login = {
+        setLoginUid = false;
+        enableGnomeKeyring = config.services.gnome.gnome-keyring.enable;
       };
-
-      environment.sessionVariables = {
-        XDG_SEAT = "seat0";
-        XDG_VTNR = "${toString cfg.tty}";
-      };
-
-      services.displayManager = {
-        enable = mkDefault true;
-      };
-
-      environment.etc = {
-        "lemurs/config.toml".source = (settingsFormat.generate "lemurs-config.toml" lemursConfig);
-      };
-
-      systemd.defaultUnit = "graphical.target";
-      systemd.services = {
-        "autovt@${tty}".enable = false;
-
-        lemurs = {
-          aliases = [ "display-manager.service" ];
-
-          unitConfig = {
-            Wants = [
-              "systemd-user-sessions.service"
-            ];
-
-            After = [
-              "systemd-user-sessions.service"
-              "plymouth-quit-wait.service"
-              "getty@${tty}.service"
-            ];
-
-            Conflicts = [
-              "getty@${tty}.service"
-            ];
-          };
-
-          serviceConfig = {
-            ExecStart =
-              let
-                args = lib.cli.toGNUCommandLineShell { } {
-                  xsessions = cfg.settings.x11.xsessions;
-                  wlsessions = cfg.settings.wayland.wayland-sessions;
-                };
-              in
-              "${pkgs.lemurs}/bin/lemurs ${args}";
-
-            StandardInput = "tty";
-            TTYPath = "/dev/${tty}";
-            TTYReset = "yes";
-            TTYVHangup = "yes";
-            Type = "idle";
-          };
-
-          restartIfChanged = false;
-          wantedBy = [ "graphical.target" ];
-        };
-      };
-
     };
+
+    environment.etc = {
+      "lemurs/config.toml".source = (tomlFmt.generate "lemurs-config.toml" lemursConfig);
+    };
+
+    systemd.defaultUnit = "graphical.target";
+    systemd.services = {
+      "autovt@${tty}".enable = false;
+
+      lemurs = {
+        aliases = [ "display-manager.service" ];
+
+        environment = {
+          XDG_SEAT = "seat0";
+          XDG_VTNR = "${toString cfg.tty}";
+        };
+
+        unitConfig = {
+          Wants = [ "systemd-user-sessions.service" ];
+
+          After = [
+            "systemd-user-sessions.service"
+            "plymouth-quit-wait.service"
+            "getty@${tty}.service"
+          ];
+
+          Conflicts = [ "getty@${tty}.service" ];
+        };
+
+        serviceConfig = {
+          ExecStart =
+            let
+              args = lib.cli.toGNUCommandLineShell { } {
+                xsessions = cfg.settings.x11.xsessions;
+                wlsessions = cfg.settings.wayland.wayland-sessions;
+              };
+            in
+            "${pkgs.lemurs}/bin/lemurs ${args}";
+
+          StandardInput = "tty";
+          TTYPath = "/dev/${tty}";
+          TTYReset = "yes";
+          TTYVHangup = "yes";
+          Type = "idle";
+        };
+
+        restartIfChanged = false;
+        wantedBy = [ "graphical.target" ];
+      };
+    };
+
+  };
 }
