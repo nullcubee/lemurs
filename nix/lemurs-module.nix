@@ -52,23 +52,6 @@ let
       wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
     };
 
-    # Hack
-    power_controls.base_entries = [
-      {
-        hint = "Shutdown";
-        hint_color = "dark gray";
-        hint_modifiers = "";
-        key = "F1";
-        cmd = "${pkgs.systemd}/bin/systemctl poweroff";
-      }
-      {
-        hint = "Reboot";
-        hint_color = "dark gray";
-        hint_modifiers = "";
-        key = "F2";
-        cmd = "${pkgs.systemd}/bin/systemctl reboot";
-      }
-    ];
   });
 in
 {
@@ -171,8 +154,15 @@ in
       };
     };
 
-    environment.etc = {
-      "lemurs/config.toml".source = (tomlFmt.generate "lemurs-config.toml" lemursConfig);
+    environment = {
+      sessionVariables = {
+        XDG_SEAT = "seat0";
+        XDG_VTNR = "${toString cfg.tty}";
+      };
+
+      etc = {
+        "lemurs/config.toml".source = (tomlFmt.generate "lemurs-config.toml" lemursConfig);
+      };
     };
 
     systemd.defaultUnit = "graphical.target";
@@ -181,11 +171,6 @@ in
 
       lemurs = {
         aliases = [ "display-manager.service" ];
-
-        environment = {
-          XDG_SEAT = "seat0";
-          XDG_VTNR = "${toString cfg.tty}";
-        };
 
         unitConfig = {
           Wants = [ "systemd-user-sessions.service" ];
