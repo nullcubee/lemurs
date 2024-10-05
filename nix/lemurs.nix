@@ -1,18 +1,20 @@
 { lib
+, bash
 , pam
 , pname
-, version
 , rustPlatform
-, bash
+, systemdMinimal
+, version
 }:
 rustPlatform.buildRustPackage {
   inherit pname version;
 
-  src = ./..;
+  src = ../.;
 
   buildInputs = [
-    pam
     bash
+    pam
+    systemdMinimal
   ];
 
   cargoHash = "sha256-GqIgpDMgXVNtM7SX58ycdOimOqVUbpRqSwprwkfk0d4=";
