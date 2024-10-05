@@ -46,14 +46,14 @@ let
     environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
 
     # Dont add x11 config if x11 isn't enabled
-    x11 = lib.optionalAttrs cfg.x11.enable {
+    x11 = {
       xauth_path = "${cfg.settings.x11.xauth}/bin/xauth";
       xserver_path = "${cfg.settings.x11.xorgserver}/bin/X";
       xsessions_path = cfg.settings.x11.xsessions;
     };
 
     # Dont add wayland config if wayland isn't enabled
-    wayland = lib.optionalAttrs cfg.wayland.enable {
+    wayland = {
       wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
     };
 
