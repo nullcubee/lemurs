@@ -17,6 +17,12 @@ rustPlatform.buildRustPackage {
     systemdMinimal
   ];
 
+  patches = [
+    # For testing:
+    # https://github.com/coastalwhite/lemurs/pull/211
+    ./append-logs.patch
+  ];
+
   cargoHash = "sha256-GqIgpDMgXVNtM7SX58ycdOimOqVUbpRqSwprwkfk0d4=";
 
   meta = with lib; {

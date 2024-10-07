@@ -1,0 +1,25 @@
+diff --git a/src/main.rs b/src/main.rs
+index 6509777..a476a27 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -129,10 +129,16 @@ pub fn initialize_panic_handler() {
+ }
+ 
+ fn setup_logger(log_path: &str) {
+-    let log_file = Box::new(File::create(log_path).unwrap_or_else(|_| {
+-        eprintln!("Failed to open log file: '{log_path}'");
+-        std::process::exit(1);
+-    }));
++    let log_file = Box::new(
++        File::options()
++            .append(true)
++            .create(true)
++            .open(log_path)
++            .unwrap_or_else(|_| {
++                eprintln!("Failed to open log file: '{log_path}'");
++                std::process::exit(1);
++            }),
++    );
+ 
+     env_logger::builder()
+         .filter_level(log::LevelFilter::Info)
