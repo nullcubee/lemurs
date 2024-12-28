@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 let
   # Module options shortcut
   cfg = config.services.lemurs;
@@ -30,29 +35,31 @@ let
   # 2. extraSettings
   # 3. defaultConfig
   # Lower numbers (i.e 1) will overwrite settings defined in higher numbers (i.e 3)
-  lemursConfig = lib.recursiveUpdate defaultConfig (lib.recursiveUpdate cfg.extraSettings {
-    # Map module options to lemurs' config.toml format
-    # Also, in general, dirty hack
+  lemursConfig = lib.recursiveUpdate defaultConfig (
+    lib.recursiveUpdate cfg.extraSettings {
+      # Map module options to lemurs' config.toml format
+      # Also, in general, dirty hack
 
-    inherit (cfg) tty;
+      inherit (cfg) tty;
 
-    # Set correct shell (not an option)
-    system_shell = lib.getExe pkgs.bash;
-    environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
+      # Set correct shell (not an option)
+      system_shell = lib.getExe pkgs.bash;
+      environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
 
-    # Dont add x11 config if x11 isn't enabled
-    x11 = {
-      xauth_path = "${cfg.settings.x11.xauth}/bin/xauth";
-      xserver_path = "${cfg.settings.x11.xorgserver}/bin/X";
-      xsessions_path = cfg.settings.x11.xsessions;
-    };
+      # Dont add x11 config if x11 isn't enabled
+      x11 = {
+        xauth_path = "${cfg.settings.x11.xauth}/bin/xauth";
+        xserver_path = "${cfg.settings.x11.xorgserver}/bin/X";
+        xsessions_path = cfg.settings.x11.xsessions;
+      };
 
-    # Dont add wayland config if wayland isn't enabled
-    wayland = {
-      wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
-    };
+      # Dont add wayland config if wayland isn't enabled
+      wayland = {
+        wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
+      };
 
-  });
+    }
+  );
 in
 {
   options.services.lemurs = {
@@ -118,15 +125,17 @@ in
 
     extraSettings = mkOption {
       type = tomlFmt.type;
-      example = lib.literalExpression /*nix*/ ''
-        {
-          do_log = true;
-          cache_path = "/var/cache/lemurs";
-          background = {
-            show_background = true;
-          };
-        }
-      '';
+      example =
+        lib.literalExpression # nix
+          ''
+            {
+              do_log = true;
+              cache_path = "/var/cache/lemurs";
+              background = {
+                show_background = true;
+              };
+            }
+          '';
       default = { };
       description = ''
         Extra configuration to be applied to config.toml as a nix attribute set

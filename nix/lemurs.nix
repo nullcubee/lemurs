@@ -1,10 +1,11 @@
-{ lib
-, bash
-, pam
-, pname
-, rustPlatform
-, systemdMinimal
-, version
+{
+  lib,
+  bash,
+  pam,
+  pname,
+  rustPlatform,
+  systemdMinimal,
+  version,
 }:
 rustPlatform.buildRustPackage {
   inherit pname version;
@@ -28,6 +29,9 @@ rustPlatform.buildRustPackage {
   meta = with lib; {
     description = "A customizable TUI display/login manager written in Rust";
     homepage = "https://github.com/coastalwhite/lemurs";
-    license = with licenses; [ asl20 mit ];
+    license = with licenses; [
+      asl20
+      mit
+    ];
   };
 }
