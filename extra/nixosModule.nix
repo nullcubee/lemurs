@@ -5,10 +5,8 @@
   ...
 }:
 let
-  # Module options shortcut
   cfg = config.services.lemurs;
 
-  # Inherit
   inherit (lib)
     mkDefault
     mkEnableOption
@@ -17,16 +15,14 @@ let
     types
     ;
 
-  # .desktop files for window manaagers/compositors
+  # desktop files for window managers/compositors
   sessionData = config.services.displayManager.sessionData;
 
-  # TOML format
   tomlFmt = pkgs.formats.toml { };
 
-  # Import config.toml as defaultConfig
+  # Import config.toml to get the default config
   defaultConfig = lib.importTOML "${pkgs.lemurs.src}/extra/config.toml";
 
-  # TTY Option
   tty = "tty${toString (cfg.tty)}";
 
   # Merge defaultConfig with extraSettings and module options
@@ -41,45 +37,40 @@ let
       # Also, in general, dirty hack
 
       inherit (cfg) tty;
-
-      # Set correct shell (not an option)
       system_shell = lib.getExe pkgs.bash;
       environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
 
-      # Dont add x11 config if x11 isn't enabled
       x11 = {
         xauth_path = "${cfg.settings.x11.xauth}/bin/xauth";
         xserver_path = "${cfg.settings.x11.xorgserver}/bin/X";
         xsessions_path = cfg.settings.x11.xsessions;
       };
 
-      # Dont add wayland config if wayland isn't enabled
       wayland = {
         wayland_sessions_path = cfg.settings.wayland.wayland-sessions;
       };
-
     }
   );
 in
 {
   options.services.lemurs = {
-    enable = mkEnableOption "the Lemurs Display Manager";
+    enable = mkEnableOption "Lemurs Display Manager";
 
-    x11.enable = mkEnableOption "the X11 part of the Lemurs Display Manager";
-    wayland.enable = mkEnableOption "the Wayland part of the Lemurs Display Manager";
+    x11.enable = mkEnableOption "managing X11 sessions";
+    wayland.enable = mkEnableOption "managing Wayland sessions";
 
     tty = mkOption {
       type = types.int;
       default = 2;
       description = ''
-        The tty which contains lemurs.
+        The tty which contains lemurs
       '';
     };
 
     settings = {
       ttyLogin = mkOption {
         type = types.bool;
-        default = (defaultConfig.environment_switcher.include_tty_shell);
+        default = defaultConfig.environment_switcher.include_tty_shell;
         description = ''
           Show an option for the TTY shell when logging in as one of the environments.
           NOTE: it is always shown when no viable options are found.
@@ -214,6 +205,5 @@ in
         wantedBy = [ "graphical.target" ];
       };
     };
-
   };
 }
