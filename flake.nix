@@ -54,7 +54,7 @@
 
           packages = {
             default = config.packages.lemurs;
-            lemurs = pkgs.callPackage ./nix/lemurs.nix {
+            lemurs = pkgs.callPackage ./nix/package.nix {
               inherit pname version;
               rustPlatform = pkgs.makeRustPlatform {
                 cargo = rustBin;
@@ -78,7 +78,7 @@
       flake = {
         nixosModules = rec {
           default = lemurs;
-          lemurs = ./nix/lemurs-module.nix;
+          lemurs = ./nix/nixosModule.nix;
         };
       };
     };
