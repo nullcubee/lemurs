@@ -8,11 +8,13 @@ let
   cfg = config.services.lemurs;
 
   inherit (lib)
+    getExe
     mkDefault
     mkEnableOption
     mkIf
     mkOption
     types
+    mkPackageOption
     ;
 
   # desktop files for window managers/compositors
@@ -21,7 +23,7 @@ let
   tomlFmt = pkgs.formats.toml { };
 
   # Import config.toml to get the default config
-  defaultConfig = lib.importTOML "${pkgs.lemurs.src}/extra/config.toml";
+  defaultConfig = lib.importTOML "${cfg.package.src}/extra/config.toml";
 
   tty = "tty${toString (cfg.tty)}";
 
@@ -55,6 +57,7 @@ in
 {
   options.services.lemurs = {
     enable = mkEnableOption "Lemurs Display Manager";
+    package = mkPackageOption pkgs "lemurs" { };
 
     x11.enable = mkEnableOption "managing X11 sessions";
     wayland.enable = mkEnableOption "managing Wayland sessions";
@@ -192,7 +195,7 @@ in
                 wlsessions = cfg.settings.wayland.wayland-sessions;
               };
             in
-            "${pkgs.lemurs}/bin/lemurs ${args}";
+            "${getExe cfg.package} ${args}";
 
           StandardInput = "tty";
           TTYPath = "/dev/${tty}";
