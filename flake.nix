@@ -73,10 +73,7 @@
 
       flake.nixosModules = rec {
         default = lemurs;
-        lemurs.imports = [
-          { nixpkgs.overlays = [ self.overlays.default ]; }
-          ./extra/nixosModule.nix
-        ];
+        lemurs.imports = [ ./extra/nixosModule.nix ];
       };
     };
 
