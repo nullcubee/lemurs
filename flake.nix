@@ -37,14 +37,8 @@
           ...
         }:
         let
-          pname = "lemurs";
           version = "0.4.0-nightly";
           rust-toolchain = pkgs.rust-bin.stable.latest.default;
-
-          rustPlatform = pkgs.makeRustPlatform {
-            cargo = rust-toolchain;
-            rustc = rust-toolchain;
-          };
         in
         {
           _module.args.pkgs = import nixpkgs {
@@ -56,26 +50,15 @@
 
           overlayAttrs = config.packages;
 
-          packages.default = rustPlatform.buildRustPackage {
-            inherit pname version;
-            src = ./.;
-
-            postPatch = ''
-              substituteInPlace extra/config.toml \
-                --replace-fail "/usr/sh" "${pkgs.bash}/bin/bash"
-
-              substituteInPlace extra/config.toml \
-                --replace-fail "/usr/bin/X" "${pkgs.xorg.xorgserver}/bin/X"
-
-              substituteInPlace extra/config.toml \
-                --replace-fail "/usr/bin/xauth" "${pkgs.xorg.xauth}/bin/xauth"
-            '';
-
-            buildInputs = [
-              pkgs.linux-pam
-            ];
-
-            cargoLock.lockFile = ./Cargo.lock;
+          packages = {
+            default = config.packages.lemurs;
+            lemurs = pkgs.callPackage ./extra/nixPackage.nix {
+              inherit version;
+              rustPlatform = pkgs.makeRustPlatform {
+                cargo = rust-toolchain;
+                rustc = rust-toolchain;
+              };
+            };
           };
 
           devShells.default = pkgs.mkShell {
