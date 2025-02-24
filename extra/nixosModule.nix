@@ -18,7 +18,8 @@ let
     ;
 
   # desktop files for window managers/compositors
-  sessionData = config.services.displayManager.sessionData;
+  dmConf = config.services.displayManager;
+  sessionData = dmConf.sessionData.desktops;
 
   tomlFmt = pkgs.formats.toml { };
 
@@ -40,6 +41,7 @@ let
 
       inherit (cfg) tty;
       system_shell = lib.getExe pkgs.bash;
+      initial_path = "/run/current-system/sw/bin";
       environment_switcher.include_tty_shell = cfg.settings.ttyLogin;
 
       x11 = {
@@ -83,7 +85,7 @@ in
       x11 = {
         xauth = mkOption {
           type = with types; nullOr package;
-          default = if cfg.x11.enable then pkgs.xorg.xauth else null;
+          default = pkgs.xorg.xauth;
           description = ''
             The package used for xauth
           '';
@@ -91,7 +93,7 @@ in
 
         xorgserver = mkOption {
           type = with types; nullOr package;
-          default = if cfg.x11.enable then pkgs.xorg.xorgserver else null;
+          default = pkgs.xorg.xorgserver;
           description = ''
             The package used for xorgserver
           '';
@@ -99,7 +101,7 @@ in
 
         xsessions = mkOption {
           type = types.path;
-          default = "${sessionData.desktops.outPath}/share/xsessions";
+          default = "${sessionData.outPath}/share/xsessions";
           description = ''
             The path to X session .desktop files
           '';
@@ -109,7 +111,7 @@ in
       wayland = {
         wayland-sessions = mkOption {
           type = types.path;
-          default = "${sessionData.desktops.outPath}/share/wayland-sessions";
+          default = "${sessionData.outPath}/share/wayland-sessions";
           description = ''
             The path to wayland session .desktop files
           '';
@@ -139,16 +141,48 @@ in
   };
 
   config = mkIf cfg.enable {
-    services.displayManager.enable = mkDefault true;
+    assertions = [
+      {
+        assertion = !dmConf.autoLogin.enable;
+        message = ''
+          lemurs doesn't support auto login.
+        '';
+      }
+    ];
+
+    services.displayManager = {
+      enable = mkDefault true;
+      execCmd =
+        let
+          args = lib.cli.toGNUCommandLineShell { } {
+            xsessions = if cfg.x11.enable then cfg.settings.x11.xsessions else null;
+            wlsessions = if cfg.wayland.enable then cfg.settings.wayland.wayland-sessions else null;
+          };
+        in
+        "${getExe cfg.package} ${args}";
+    };
+
+    services.dbus.packages = [ cfg.package ];
+    services.xserver = {
+      tty = null;
+      display = null;
+      displayManager.lightdm.enable = false;
+    };
 
     # PAM setup
     security.pam.services = {
-      lemurs.text = ''
-        auth include login
-        account include login
-        session include login
-        password include login
-      '';
+      lemurs = {
+        startSession = true;
+        unixAuth = true;
+        enableGnomeKeyring = lib.mkDefault config.services.gnome.gnome-keyring.enable;
+      };
+
+      # lemurs.text = ''
+      #   auth include login
+      #   account include login
+      #   session include login
+      #   password include login
+      # '';
 
       # See https://github.com/coastalwhite/lemurs/issues/166
       login = {
@@ -163,17 +197,17 @@ in
         XDG_VTNR = "${toString cfg.tty}";
       };
 
-      etc = {
-        "lemurs/config.toml".source = (tomlFmt.generate "lemurs-config.toml" lemursConfig);
-      };
+      etc."lemurs/config.toml".source = (tomlFmt.generate "lemurs-config.toml" lemursConfig);
+
+      systemPackages = [ cfg.package ];
     };
 
     systemd.defaultUnit = "graphical.target";
     systemd.services = {
       "autovt@${tty}".enable = false;
 
-      lemurs = {
-        aliases = [ "display-manager.service" ];
+      display-manager = {
+        aliases = [ "lemurs.service" ];
 
         unitConfig = {
           Wants = [ "systemd-user-sessions.service" ];
@@ -188,16 +222,6 @@ in
         };
 
         serviceConfig = {
-          ExecStart =
-            let
-              args = lib.cli.toGNUCommandLineShell { } {
-                xsessions = cfg.settings.x11.xsessions;
-                wlsessions = cfg.settings.wayland.wayland-sessions;
-                initial-path = "/run/current-system/sw/bin";
-              };
-            in
-            "${getExe cfg.package} ${args}";
-
           StandardInput = "tty";
           TTYPath = "/dev/${tty}";
           TTYReset = "yes";
@@ -210,4 +234,6 @@ in
       };
     };
   };
+
+  meta.maintainers = with lib.maintainers; [ nullcube ];
 }
