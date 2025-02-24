@@ -193,6 +193,7 @@ in
               args = lib.cli.toGNUCommandLineShell { } {
                 xsessions = cfg.settings.x11.xsessions;
                 wlsessions = cfg.settings.wayland.wayland-sessions;
+                initial-path = "/run/current-system/sw/bin";
               };
             in
             "${getExe cfg.package} ${args}";
